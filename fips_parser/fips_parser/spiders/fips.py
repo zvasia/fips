@@ -11,7 +11,7 @@ class FipsSpider(scrapy.Spider):
         print('ПРОВЕРКА РЕСПОНСА')
         print(proxy.address)
         if self.wrong_response in response.body.decode('cp1251'):
-            print(response.body.decode('cp1251'))
+            print(response.body.decode('cp1251') + '\n\n' + 'ПРОВЕРКА НЕ ПРОЙДЕНА' + '\n\n')
             return False
         print('ОТПРАВЛЯЕМ ТРУ')
         return True
@@ -22,7 +22,9 @@ class FipsSpider(scrapy.Spider):
             urls.append('https://www1.fips.ru/fips_servl/fips_servlet?DB=RUTM&DocNumber={}&TypeFile=html'.format(num))
 
         for url in urls:
-            yield scrapy.Request(url=url, callback=self.parse, meta={"check_callback": self.check_proxy_response})
+            print('Запрос на' + url)
+            yield scrapy.Request(url=url, callback=self.parse, meta={"check_callback": self.check_proxy_response},
+                                 dont_filter=True)
 
     def parse(self, response):
         print('ПАРСЕР')

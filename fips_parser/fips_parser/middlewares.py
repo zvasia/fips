@@ -32,31 +32,33 @@ class TestDownloaderMiddleware:
         proxy_object = self.proxy_storage.get_proxy()
         request.meta['proxy_object'] = proxy_object
         request.meta['proxy'] = proxy_object.address
-        print(proxy_object.address)
+        print("\nЗАПРОС")
+        proxy_object.get_proxy_state()
         return None
 
     def process_response(self, request, response, spider):
-        print('start response')
+        print('ОТВЕТ')
         check_response = request.meta['check_callback']
         if check_response(response, request) is True:
+            p = request.meta['proxy_object']
+            p.available = True
             return response
         else:
-            self.retry(request, 2, spider)
-        proxy = request.meta['proxy_object']
+            # return request.copy()
+            self.retry(request, -2, spider)
 
-        if response.status in RETRY_HTTP_CODES:
-            return self.retry(request, response.status, spider)
-            # request.meta['proxy'] = get_random_proxy(self.proxies)
         # Called with the response returned from the downloader.
         # Must either;
         # - return a Response object
         # - return a Request object
         # - or raise IgnoreRequest
-        return response
 
     def process_exception(self, request, exception, spider):
-        if isinstance(exception, TimeoutError) or isinstance(exception, TCPTimedOutError):
-            return self.retry(request, 1, spider)
+        return self.retry(request, -1, spider)
+        # if isinstance(exception, TimeoutError) or isinstance(exception, TCPTimedOutError):
+        #     return self.retry(request, -1, spider)
+        # else:
+        #     print('ЭТО ИСКЛЮЧЕНИЕ МЫ НЕ ВОЗВРАЩАЕМ')
 
         # Called when a download handler or a process_request()
         # (from other downloader middleware) raises an exception.
@@ -70,15 +72,17 @@ class TestDownloaderMiddleware:
         spider.logger.info('Spider opened: %s' % spider.name)
 
     def retry(self, request, reason, spider):
-        print('retrying')
+        print('ПОВТОР ЗАПРОСА')
         p = request.meta['proxy_object']
+        p.available = True
         p.rating = p.rating + reason
-        print("МЕНЯЕМ РЕЙТИНГА НА " + str(p.rating))
+        print("МЕНЯЕМ РЕЙТИНГ НА " + str(p.rating))
+        p.get_proxy_state()
         retryreq = request.copy()
         print('ПОЛУЧАЕМ НОВЫЙ ПРОКСИ')
         proxy_object = self.proxy_storage.get_proxy()
         retryreq.meta['proxy_object'] = proxy_object
         retryreq.meta['proxy'] = proxy_object.address
-        print("Меняем прокси на " + proxy_object.address)
+        print(proxy_object.get_proxy_state())
         print('ОТПРАВЛЯЕМ ПОВТОРНЫЙ ЗАПРОС')
         return retryreq
