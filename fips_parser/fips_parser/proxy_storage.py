@@ -1,8 +1,42 @@
 import asyncio
 import random
+import aiohttp
+
 from datetime import datetime, timedelta
 from proxybroker import Broker
+from proxybroker.resolver import Resolver
+from proxybroker.utils import log
 from .settings import PROXY_LIMIT
+
+
+class ResolverCustom(Resolver):
+    _temp_host = []
+
+    def _pop_random_ip_host(self):
+
+        host = random.choice(self._temp_host)
+        self._temp_host.remove(host)
+        return host
+
+    async def get_real_ext_ip(self):
+        self._temp_host = self._ip_hosts.copy()
+        while self._temp_host:
+            try:
+                timeout = aiohttp.ClientTimeout(total=self._timeout)
+                async with aiohttp.ClientSession(
+                        timeout=timeout, loop=self._loop
+                ) as session, session.get(self._pop_random_ip_host()) as resp:
+                    ip = await resp.text()
+            except asyncio.TimeoutError:
+                pass
+            else:
+                ip = ip.strip()
+                if self.host_is_ip(ip):
+                    log.debug('Real external IP: %s', ip)
+                    break
+        else:
+            raise RuntimeError('Could not get the external IP')
+        return ip
 
 
 class ProxyStorage(object):
@@ -11,14 +45,15 @@ class ProxyStorage(object):
             open('proxy_ban_list.txt', 'r')
         except IOError:
             open('proxy_ban_list.txt', 'w')
-        self.proxies = self.get_new_proxies()
+        address_list = []
+        self.proxies = []
+        self.find_proxies(address_list)
+        self.get_proxy_objects(address_list)
 
     def get_proxy_objects(self, list):
         # TODO итератор
-        proxy_list = []
         for proxy in list:
-            proxy_list.append(ProxyState(proxy))
-        return proxy_list
+            self.proxies.append(ProxyState(proxy))
 
     def get_random_proxy(self, list):
         # TODO использовать итераторы
@@ -31,20 +66,11 @@ class ProxyStorage(object):
             if p.ready_to_use(5) and p.available:
                 ready_to_use.append(p)
         if len(ready_to_use) < 1:
-            print('не осталось подходящих адресов')
             return None
         x = random.choice(ready_to_use)
         x.time_of_last_use = datetime.now()
         x.available = False
         return x
-
-    def add_proxy(self, address, list):
-        if self.in_ban_list(address) is False:
-            if address not in list:
-                list.append(address)
-                print('add_proxy ' + address)
-        else:
-            print(address + ' in ban list')
 
     def ban_proxy(self, proxy):
         print('баним ' + proxy)
@@ -60,7 +86,7 @@ class ProxyStorage(object):
         else:
             return False
 
-    async def save_proxy(self, proxies, list):
+    async def format_proxy(self, proxies, list):
         """Save proxies."""
         while True:
             proxy = await proxies.get()
@@ -70,34 +96,36 @@ class ProxyStorage(object):
             row = '%s://%s:%d\n' % (proto, proxy.host, proxy.port)
             self.add_proxy(row, list)
 
+    def add_proxy(self, address, list):
+        if self.in_ban_list(address) is False:
+            if address not in self.proxies:
+                list.append(address)
+                print('add_proxy ' + address)
+        else:
+            print(address + ' in ban list')
+
     def find_proxies(self, list):
         proxies = asyncio.Queue()
         broker = Broker(proxies)
+        broker._resolver = ResolverCustom()
         types = ['HTTP', 'HTTPS']
         tasks = asyncio.gather(broker.find(types=types, limit=PROXY_LIMIT),
-                               self.save_proxy(proxies, list))
+                               self.format_proxy(proxies, list))
         try:
             loop = asyncio.get_event_loop()
             loop.run_until_complete(asyncio.wait_for(tasks, 60))
         except asyncio.TimeoutError:
             print("RETRYING PROXIES ...")
-        return list
-
-    def get_new_proxies(self):
-        proxy_list = []
-        self.find_proxies(proxy_list)
-        return self.get_proxy_objects(proxy_list)
 
     def get_proxy(self):
         random_proxy = self.get_random_proxy(self.proxies)
         while random_proxy is None:
-            self.get_new_proxies()
+            address_list = []
+            self.find_proxies(address_list)
+            self.get_proxy_objects(address_list)
             random_proxy = self.get_random_proxy(self.proxies)
-        print('АКТУАЛЬНЫЕ АДРЕСА')
+        print('АКТУАЛЬНЫЕ ПРОКСИ')
         print(len(self.proxies))
-        # for i in self.proxies:
-        #     i.get_proxy_state()
-        print('ОТДАЕМ ПРОКСИ')
         return random_proxy
 
 
@@ -111,7 +139,7 @@ class ProxyState(object):
 
     def ready_to_use(self, cooldown_in_seconds):
         current_delta = datetime.now() - self.time_of_last_use
-        if current_delta < timedelta(seconds=cooldown_in_seconds):
+        if current_delta > timedelta(seconds=cooldown_in_seconds):
             return True
         else:
             return False

@@ -7,13 +7,11 @@ class FipsSpider(scrapy.Spider):
     wrong_response = "Слишком быстрый просмотр документов."
 
     def check_proxy_response(self, response, request):
-        proxy = request.meta['proxy_object']
-        print('ПРОВЕРКА РЕСПОНСА')
-        print(proxy.address)
+        p = request.meta['proxy_object']
         if self.wrong_response in response.body.decode('cp1251'):
             print(response.body.decode('cp1251') + '\n\n' + 'ПРОВЕРКА НЕ ПРОЙДЕНА' + '\n\n')
             return False
-        print('ОТПРАВЛЯЕМ ТРУ')
+        p.rating = p.rating + 1
         return True
 
     def start_requests(self):
@@ -22,12 +20,11 @@ class FipsSpider(scrapy.Spider):
             urls.append('https://www1.fips.ru/fips_servl/fips_servlet?DB=RUTM&DocNumber={}&TypeFile=html'.format(num))
 
         for url in urls:
-            print('Запрос на' + url)
-            yield scrapy.Request(url=url, callback=self.parse, meta={"check_callback": self.check_proxy_response},
+            yield scrapy.Request(url=url, callback=self.parse, meta={"check_callback": self.check_proxy_response,
+                                                                     "proxy_object": ''},
                                  dont_filter=True)
 
     def parse(self, response):
-        print('ПАРСЕР')
         ip = str(response.css("p.bib>b>a::text").extract())
         with open('ips.txt', 'a') as file:
             file.write(ip + "\n")

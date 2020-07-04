@@ -54,7 +54,7 @@ class TestDownloaderMiddleware:
         # - or raise IgnoreRequest
 
     def process_exception(self, request, exception, spider):
-        return self.retry(request, -1, spider)
+        return self.retry(request, -3, spider)
         # if isinstance(exception, TimeoutError) or isinstance(exception, TCPTimedOutError):
         #     return self.retry(request, -1, spider)
         # else:
@@ -72,14 +72,11 @@ class TestDownloaderMiddleware:
         spider.logger.info('Spider opened: %s' % spider.name)
 
     def retry(self, request, reason, spider):
-        print('ПОВТОР ЗАПРОСА')
         p = request.meta['proxy_object']
         p.available = True
         p.rating = p.rating + reason
-        print("МЕНЯЕМ РЕЙТИНГ НА " + str(p.rating))
         p.get_proxy_state()
         retryreq = request.copy()
-        print('ПОЛУЧАЕМ НОВЫЙ ПРОКСИ')
         proxy_object = self.proxy_storage.get_proxy()
         retryreq.meta['proxy_object'] = proxy_object
         retryreq.meta['proxy'] = proxy_object.address
