@@ -9,30 +9,38 @@
 
 BOT_NAME = 'fips_parser'
 
-DUPEFILTER_DEBUG=True
-LOG_LEVEL='DEBUG'
+DUPEFILTER_DEBUG = True
+LOG_LEVEL = 'DEBUG'
 SPIDER_MODULES = ['fips_parser.spiders']
 NEWSPIDER_MODULE = 'fips_parser.spiders'
-# PROXIES_LIST = 'proxies.txt'
 PROXY_LIMIT = 40
 RETRY_HTTP_CODES = [500, 501, 502, 503, 504, 522, 524, 400, 403, 404, 408, 429]
 RETRY_ENABLED = False
 
+# urls for get_nums spider
+SEARCH_URL = 'https://www1.fips.ru/publication-web/publications/UsrTM?pageNumber={page_number}&tab=UsrTM' \
+             '&inputDocNumber=&inputDocNumber_from=&inputDocNumber_to=&inputSelectOIS=TM&selectOISDocType=TM-R'
+
+DATE_SEARCH = '&extendedFilter=true&_extendedFilter=on&registration_S={date_from}&registration_Po={date_to}'
+
+DATE_FROM = '15.07.2011'
+DATE_TO = '25.07.2011'
+
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'fips_parser (+http://www.yourdomain.com)'
+# USER_AGENT = 'fips_parser (+http://www.yourdomain.com)'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-# CONCURRENT_REQUESTS = 1
+CONCURRENT_REQUESTS = 20
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 # DOWNLOAD_DELAY = 3
 # The download delay setting will honor only one of:
-# CONCURRENT_REQUESTS_PER_DOMAIN = 16
+CONCURRENT_REQUESTS_PER_DOMAIN = 20
 # CONCURRENT_REQUESTS_PER_IP = 1
 
 # Disable cookies (enabled by default)
@@ -56,7 +64,7 @@ ROBOTSTXT_OBEY = False
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
-    'fips_parser.middlewares.TestDownloaderMiddleware': 1,
+    'fips_parser.middlewares.TestDownloaderMiddleware': 523,
 #    'fips_parser.middlewares.FipsParserDownloaderMiddleware': 543,
 }
 
@@ -74,16 +82,16 @@ DOWNLOADER_MIDDLEWARES = {
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
-# AUTOTHROTTLE_ENABLED = False
+AUTOTHROTTLE_ENABLED = True
 # The initial download delay
 # AUTOTHROTTLE_START_DELAY = 0
 # The maximum download delay to be set in case of high latencies
-#AUTOTHROTTLE_MAX_DELAY = 60
+# AUTOTHROTTLE_MAX_DELAY = 60
 # The average number of requests Scrapy should be sending in parallel to
 # each remote server
-#AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
+# AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
 # Enable showing throttling stats for every response received:
-#AUTOTHROTTLE_DEBUG = False
+# AUTOTHROTTLE_DEBUG = False
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
@@ -95,14 +103,14 @@ DOWNLOADER_MIDDLEWARES = {
 
 DOCNUM_LIST_FILENAME = "numbers.txt"
 
-SQLALCHEMY_DB = "mysql://fips-number:FipPSV&ys4#@poiskznakov.cg3pufp1yols.eu-west-1.rds.amazonaws.com:3306/ru?charset=utf8mb4"
+# SQLALCHEMY_DB = "mysql://fips-number:FipPSV&ys4#@poiskznakov.cg3pufp1yols.eu-west-1.rds.amazonaws.com:3306/ru?charset=utf8mb4"
 
 # There fields will be updated if present on mark page.
-FIELDS_TO_UPDATE = [
-    "country", "application_number", "valid_until",
-    "application_date", "registration_date",
-    "owner", "owner_address", "status", "status_date",
-    "colors", "publishing_date", "icgs"]
+# FIELDS_TO_UPDATE = [
+#     "country", "application_number", "valid_until",
+#     "application_date", "registration_date",
+#     "owner", "owner_address", "status", "status_date",
+#     "colors", "publishing_date", "icgs"]
 
 try:
     from fips_by_number.local_settings import *

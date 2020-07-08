@@ -9,6 +9,8 @@ from proxybroker.utils import log
 from .settings import PROXY_LIMIT
 
 
+MIN_PROXY_RATING = -3
+
 class ResolverCustom(Resolver):
     _temp_host = []
 
@@ -51,14 +53,12 @@ class ProxyStorage(object):
         self.get_proxy_objects(address_list)
 
     def get_proxy_objects(self, list):
-        # TODO итератор
         for proxy in list:
             self.proxies.append(ProxyState(proxy))
 
     def get_random_proxy(self, list):
-        # TODO использовать итераторы
         for p in list:
-            if p.rating < -3:
+            if p.rating < MIN_PROXY_RATING:
                 self.ban_proxy(p.address)
                 list.remove(p)
         ready_to_use = []
@@ -124,8 +124,8 @@ class ProxyStorage(object):
             self.find_proxies(address_list)
             self.get_proxy_objects(address_list)
             random_proxy = self.get_random_proxy(self.proxies)
-        print('АКТУАЛЬНЫЕ ПРОКСИ')
-        print(len(self.proxies))
+        print('АКТУАЛЬНЫЕ ПРОКСИ: ' + str(len(self.proxies)))
+        print('Random proxy is: ' + str(random_proxy))
         return random_proxy
 
 
@@ -145,10 +145,10 @@ class ProxyState(object):
             return False
 
     def get_proxy_state(self):
-        print('\n' + str(self.available))
-        print(self.rating)
-        print(self.time_of_last_use)
-        print(self.address)
+        print('\nAvailable: ' + str(self.available))
+        print('Rating: ' + str(self.rating))
+        print('Time of use: ' + str(self.time_of_last_use))
+        print('Adress: ' + str(self.address))
 
 
 # def main():

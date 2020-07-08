@@ -21,8 +21,7 @@ class FipsSpider(scrapy.Spider):
 
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse, meta={"check_callback": self.check_proxy_response,
-                                                                     "proxy_object": ''},
-                                 dont_filter=True)
+                                                                     "proxy_object": ''}, dont_filter=True)
 
     def parse(self, response):
         ip = str(response.css("p.bib>b>a::text").extract())

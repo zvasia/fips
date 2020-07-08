@@ -4,10 +4,8 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 from datetime import datetime, timedelta
 from venv import logger
-
 from scrapy import signals
 from twisted.internet.error import TCPTimedOutError
-
 from .settings import RETRY_HTTP_CODES
 from .proxy_storage import ProxyStorage
 
@@ -29,6 +27,8 @@ class TestDownloaderMiddleware:
         return s
 
     def process_request(self, request, spider):
+        if request.meta['check_callback'] is None:
+            return None
         proxy_object = self.proxy_storage.get_proxy()
         request.meta['proxy_object'] = proxy_object
         request.meta['proxy'] = proxy_object.address
@@ -37,16 +37,16 @@ class TestDownloaderMiddleware:
         return None
 
     def process_response(self, request, response, spider):
-        print('ОТВЕТ')
+        if request.meta['check_callback'] is None:
+            return response
+
         check_response = request.meta['check_callback']
         if check_response(response, request) is True:
             p = request.meta['proxy_object']
             p.available = True
             return response
         else:
-            # return request.copy()
             self.retry(request, -2, spider)
-
         # Called with the response returned from the downloader.
         # Must either;
         # - return a Response object
@@ -54,7 +54,10 @@ class TestDownloaderMiddleware:
         # - or raise IgnoreRequest
 
     def process_exception(self, request, exception, spider):
-        return self.retry(request, -3, spider)
+        if request.meta['check_callback'] is None:
+            return request
+        else:
+            return self.retry(request, -3, spider)
         # if isinstance(exception, TimeoutError) or isinstance(exception, TCPTimedOutError):
         #     return self.retry(request, -1, spider)
         # else:
@@ -80,6 +83,5 @@ class TestDownloaderMiddleware:
         proxy_object = self.proxy_storage.get_proxy()
         retryreq.meta['proxy_object'] = proxy_object
         retryreq.meta['proxy'] = proxy_object.address
-        print(proxy_object.get_proxy_state())
-        print('ОТПРАВЛЯЕМ ПОВТОРНЫЙ ЗАПРОС')
+
         return retryreq
