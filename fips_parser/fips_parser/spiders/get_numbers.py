@@ -1,18 +1,15 @@
 import lxml.html
 import requests
 import scrapy
-# import fips_parser.fips_parser.settings
-from ..settings import SEARCH_URL, DATE_SEARCH, DATE_FROM, DATE_TO
+from ..settings import SEARCH_URL, DATE_SEARCH, DATE_FROM, DATE_TO, DOCNUMS_FROM_SITE
 
 
-class FipsSpider(scrapy.Spider):
-    name = "get_nums"
+class FipsSearchSpider(scrapy.Spider):
+    name = "nums_from_fips"
 
     # check response and increase proxy rating
-    def check_proxy_response(self, response, request):
-        p = request.meta['proxy_object']
+    def check_proxy_response(self, response):
         if response.status == 200:
-            p.rating = p.rating + 1
             return True
         return False
 
@@ -46,6 +43,6 @@ class FipsSpider(scrapy.Spider):
                 with open('nums.txt', 'a') as f:
                     f.write(num + '\n')
             except IOError:
-                open('nums.txt', 'w')
+                open(DOCNUMS_FROM_SITE, 'w')
                 with open('nums.txt', 'a') as f:
                     f.write(num + '\n')

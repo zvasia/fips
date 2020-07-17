@@ -5,12 +5,10 @@
 from datetime import datetime, timedelta
 from venv import logger
 from scrapy import signals
-from twisted.internet.error import TCPTimedOutError
-from .settings import RETRY_HTTP_CODES
 from .proxy_storage import ProxyStorage
 
 
-class TestDownloaderMiddleware:
+class FipsDownloaderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
@@ -32,7 +30,6 @@ class TestDownloaderMiddleware:
         proxy_object = self.proxy_storage.get_proxy()
         request.meta['proxy_object'] = proxy_object
         request.meta['proxy'] = proxy_object.address
-        print("\nЗАПРОС")
         proxy_object.get_proxy_state()
         return None
 
@@ -41,12 +38,13 @@ class TestDownloaderMiddleware:
             return response
 
         check_response = request.meta['check_callback']
-        if check_response(response, request) is True:
+        if check_response(response) is True:
             p = request.meta['proxy_object']
+            p.rating = p.rating + 1
             p.available = True
             return response
         else:
-            self.retry(request, -2, spider)
+            return self.retry(request, -2, spider)
         # Called with the response returned from the downloader.
         # Must either;
         # - return a Response object
@@ -58,10 +56,6 @@ class TestDownloaderMiddleware:
             return request
         else:
             return self.retry(request, -3, spider)
-        # if isinstance(exception, TimeoutError) or isinstance(exception, TCPTimedOutError):
-        #     return self.retry(request, -1, spider)
-        # else:
-        #     print('ЭТО ИСКЛЮЧЕНИЕ МЫ НЕ ВОЗВРАЩАЕМ')
 
         # Called when a download handler or a process_request()
         # (from other downloader middleware) raises an exception.
@@ -75,13 +69,17 @@ class TestDownloaderMiddleware:
         spider.logger.info('Spider opened: %s' % spider.name)
 
     def retry(self, request, reason, spider):
-        p = request.meta['proxy_object']
-        p.available = True
-        p.rating = p.rating + reason
-        p.get_proxy_state()
+        try:
+            p = request.meta['proxy_object']
+            p.available = True
+            p.rating = p.rating + reason
+            p.get_proxy_state()
+        except AttributeError:
+            logger.error('There is no proxy_object in request')
+            pass
         retryreq = request.copy()
         proxy_object = self.proxy_storage.get_proxy()
         retryreq.meta['proxy_object'] = proxy_object
         retryreq.meta['proxy'] = proxy_object.address
-
+        logger.info('Request fails, retrying')
         return retryreq

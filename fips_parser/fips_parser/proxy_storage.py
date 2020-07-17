@@ -1,7 +1,7 @@
 import asyncio
 import random
 import aiohttp
-
+import logging
 from datetime import datetime, timedelta
 from proxybroker import Broker
 from proxybroker.resolver import Resolver
@@ -11,6 +11,8 @@ from .settings import PROXY_LIMIT
 
 MIN_PROXY_RATING = -3
 
+
+# its here to fix ProxyBroker bug
 class ResolverCustom(Resolver):
     _temp_host = []
 
@@ -26,7 +28,8 @@ class ResolverCustom(Resolver):
             try:
                 timeout = aiohttp.ClientTimeout(total=self._timeout)
                 async with aiohttp.ClientSession(
-                        timeout=timeout, loop=self._loop
+                        timeout=timeout, loop=self._loop,
+                        connector=aiohttp.TCPConnector(verify_ssl=False)
                 ) as session, session.get(self._pop_random_ip_host()) as resp:
                     ip = await resp.text()
             except asyncio.TimeoutError:
@@ -57,23 +60,28 @@ class ProxyStorage(object):
             self.proxies.append(ProxyState(proxy))
 
     def get_random_proxy(self, list):
+        # ban all proxy with lower then min rating
         for p in list:
             if p.rating < MIN_PROXY_RATING:
                 self.ban_proxy(p.address)
                 list.remove(p)
         ready_to_use = []
+
+        # filter by cooldown and availability
         for p in list:
             if p.ready_to_use(5) and p.available:
                 ready_to_use.append(p)
         if len(ready_to_use) < 1:
             return None
         x = random.choice(ready_to_use)
+
+        # set availability and cooldown to fix proxy to request
         x.time_of_last_use = datetime.now()
         x.available = False
         return x
 
     def ban_proxy(self, proxy):
-        print('баним ' + proxy)
+        logging.info('Ban to ' + str(proxy))
         filename = 'proxy_ban_list.txt'
         with open(filename, 'a') as f:
             f.write(proxy)
@@ -82,6 +90,7 @@ class ProxyStorage(object):
         file = open("proxy_ban_list.txt", "r")
         ban_list = file.readlines()
         if address in ban_list:
+            logging.info('Proxy already in ban-list: ' + str(address))
             return True
         else:
             return False
@@ -100,9 +109,7 @@ class ProxyStorage(object):
         if self.in_ban_list(address) is False:
             if address not in self.proxies:
                 list.append(address)
-                print('add_proxy ' + address)
-        else:
-            print(address + ' in ban list')
+                logging.info('Add proxy: ' + address)
 
     def find_proxies(self, list):
         proxies = asyncio.Queue()
@@ -117,6 +124,7 @@ class ProxyStorage(object):
         except asyncio.TimeoutError:
             print("RETRYING PROXIES ...")
 
+
     def get_proxy(self):
         random_proxy = self.get_random_proxy(self.proxies)
         while random_proxy is None:
@@ -124,8 +132,7 @@ class ProxyStorage(object):
             self.find_proxies(address_list)
             self.get_proxy_objects(address_list)
             random_proxy = self.get_random_proxy(self.proxies)
-        print('АКТУАЛЬНЫЕ ПРОКСИ: ' + str(len(self.proxies)))
-        print('Random proxy is: ' + str(random_proxy))
+        print('Quantity of alive proxies in list: ' + str(len(self.proxies)))
         return random_proxy
 
 
